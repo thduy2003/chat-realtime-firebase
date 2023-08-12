@@ -70,7 +70,7 @@ const Search = () => {
                 <img src={user.photoURL} alt="" />
                 <div className='userChatInfo'>
                     <span>{user.displayName}</span>
-                    <p>Hello</p>
+
                 </div>
 
             </div>}

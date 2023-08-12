@@ -7,8 +7,10 @@ import { doc, setDoc } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom';
 const Register = () => {
     const [err, setErr] = useState(false);
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const handleSubmit = async (e) => {
+        setLoading(true);
         e.preventDefault();
         const displayName = e.target[0].value;
         const email = e.target[1].value;
@@ -19,38 +21,39 @@ const Register = () => {
 
 
 
-            const storageRef = ref(storage, displayName);
+            //Create a unique image name
+            const date = new Date().getTime();
+            const storageRef = ref(storage, `${displayName + date}`);
 
-            const uploadTask = uploadBytesResumable(storageRef, file);
-
-
-            uploadTask.on(
-                (error) => {
-                    setErr(true)
-                },
-                () => {
-                    // Handle successful uploads on complete
-                    // For instance, get the download URL: https://firebasestorage.googleapis.com/...
-                    getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-                        //cập nhật vô user đăng kí
+            await uploadBytesResumable(storageRef, file).then(() => {
+                getDownloadURL(storageRef).then(async (downloadURL) => {
+                    try {
+                        //Update profile
                         await updateProfile(res.user, {
                             displayName,
-                            photoURL: downloadURL
-                        })
-                        //lưu vô database
+                            photoURL: downloadURL,
+                        });
+                        //create user on firestore
                         await setDoc(doc(db, "users", res.user.uid), {
                             uid: res.user.uid,
                             displayName,
                             email,
-                            photoURL: downloadURL
-                        })
-                        await setDoc(doc(db, "userChats", res.user.uid), {})
-                        navigate('/')
-                    });
-                }
-            );
+                            photoURL: downloadURL,
+                        });
+
+                        //create empty user chats on firestore
+                        await setDoc(doc(db, "userChats", res.user.uid), {});
+                        navigate("/");
+                    } catch (err) {
+                        console.log(err);
+                        setErr(true);
+                        setLoading(false);
+                    }
+                });
+            });
         } catch (error) {
-            setErr(true)
+            setErr(true);
+            setLoading(false);
         }
 
     }
@@ -69,6 +72,7 @@ const Register = () => {
                         <span>Add an avatar</span>
                     </label>
                     <button >Sign up</button>
+                    {loading && "Uploading and compressing the image please wait..."}
                     {err && <span>Something went wrong</span>}
                 </form>
                 <p>You do have an account? Login</p>
